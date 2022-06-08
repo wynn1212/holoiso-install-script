@@ -9,7 +9,7 @@ HOLO_INSTALL_DIR="${HOLO_INSTALL_DIR:-/mnt}"
 INSTALLER_UPD_QUERY=$(pacman -Qu | grep holoiso-install-script)
 
 # Internet connectivity check
-wget -q --spider http://google.com
+wget -q --spider http://github.com
 if [ $? -eq 0 ]; then
 	echo "Internet check passed"
 else
