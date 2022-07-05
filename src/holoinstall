@@ -54,7 +54,7 @@ base_os_install() {
 	
 	INSTALLDEVICE="${DEVICE}"
 
-	echo "1) Destructive install\n2) Install alongside existing OS\nType 1 or 2: "
+	echo "1) Erase your drive\n2) Install alongside existing OS\nType 1 or 2: "
 	read "?Your choice is: " install
 
 	case $install in
@@ -80,7 +80,7 @@ base_os_install() {
 			esac
 			;;
 		2)
-			echo "Holo OS will be installed alongside existing OS, please make sure there are more than 24 GB of free space available"
+			echo "HoloISO will be installed alongside existing OS, please make sure there are more than 24 GB of free space available"
 			;;
 		*)
 			echo "Invalid options, please try again"
