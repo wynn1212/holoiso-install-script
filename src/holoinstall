@@ -79,7 +79,9 @@ base_os_install() {
 	case $install in
 		1)
 			destructive=true
-			umount $INSTALLDEVICE*
+			# Umount twice to fully umount the broken install of steam os 3 before installing.
+			umount $INSTALLDEVICE* > /dev/null 2>&1
+			umount $INSTALLDEVICE* > /dev/null 2>&1
 			echo "\n\nWARNING: The following drive is going to be erased fully. ALL DATA ON DRIVE $DEVICE WILL BE LOST!\n"
 			lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,VENDOR,MODEL,SERIAL,MOUNTPOINT $DEVICE
 			echo -n "\nErase $DEVICE and begin installation(y/n): "
