@@ -22,7 +22,7 @@ echo "Checking if installer is up to date..."
 ${CMD_PACMAN_UPDATE}
 if [ -n "${INSTALLER_UPD_QUERY}" ]; then
   pacman -S holoiso-install-script
-  echo "Updated installer. Run holoinstall again."
+  echo "Installer updated. Please run holoinstall again."
   exit
 else
   echo "Installer is up to date. Starting installation."
@@ -46,24 +46,45 @@ else
 	UCODE_INSTALL="intel-ucode"
 fi
 
+check_mount(){
+	if [ $1 != 0 ]; then
+		echo "\nError: Something went wrong when mounting $2 partitions. Please try again!\n"
+		exit 1
+	fi
+}
+
+check_download(){
+	if [ $1 != 0 ]; then
+		echo "\nError: Something went wrong when $2.\nPlease make sure you have a stable internet connection!\n"
+		exit 1
+	fi
+}
+
 base_os_install() {
-	lsblk
+	lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,VENDOR,MODEL,SERIAL,MOUNTPOINT
 	read "?Enter your desired drive node here (for example, sda or nvme0n1): " DRIVEDEVICE
 	
 	DEVICE="/dev/${DRIVEDEVICE}"
 	
 	INSTALLDEVICE="${DEVICE}"
 
-	echo "1) Erase your drive\n2) Install alongside existing OS\nType 1 or 2: "
+	if [ ! -b $DEVICE ]; then
+		echo "$DEVICE not found! Installation Aborted!"
+		exit 1
+	fi
+	
+	echo "1) Erase your drive\n2) Install alongside existing OS/Partition\nType 1 or 2: "
 	read "?Your choice is: " install
 
 	case $install in
 		1)
 			destructive=true
-			umount $INSTALLDEVICE*
+			# Umount twice to fully umount the broken install of steam os 3 before installing.
+			umount $INSTALLDEVICE* > /dev/null 2>&1
+			umount $INSTALLDEVICE* > /dev/null 2>&1
 			echo "\n\nWARNING: The following drive is going to be erased fully. ALL DATA ON DRIVE $DEVICE WILL BE LOST!\n"
-			lsblk $DEVICE
-			echo -n "\nErase $DEVICE and begin installation(y/N): "
+			lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,VENDOR,MODEL,SERIAL,MOUNTPOINT $DEVICE
+			echo -n "\nErase $DEVICE and begin installation(y/n): "
 			read ANS
 			case $ANS in
 				y | Y)
@@ -73,17 +94,37 @@ base_os_install() {
 					echo "\nCreating new gpt partitions..."
 					parted ${DEVICE} mklabel gpt
 					;;
+				n | N)
+					echo "\nNothing has been written.\nYou canceled the destructive install, please try again"
+					exit 1
+					;;
 				*)
-					echo "\nInvalid options.\nYou canceled the destructive install, please try again"
+					echo "\nInvalid options.\nNothing has been written.\nYou canceled the destructive install, please try again"
 					exit 1
 					;;
 			esac
 			;;
 		2)
-			echo "HoloISO will be installed alongside existing OS, please make sure there are more than 24 GB of free space available"
+			echo "\nHoloISO will be installed alongside existing OS/Partition.\nPlease make sure there are more than 24 GB of free space available\n"
+			lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,VENDOR,MODEL,SERIAL,MOUNTPOINT $DEVICE
+			echo -n "\nDoes this look reasonable(y/n): "
+			read ANS
+			case $ANS in
+				y | Y)
+					echo "\nBeginning installation..."
+					;;
+				n | N)
+					echo "\nNothing has been written.\nYou canceled the non-destructive install, please try again"
+					exit 1
+					;;
+				*)
+					echo "\nInvalid options.\nNothing has been written.\nYou canceled the non-destructive install, please try again"
+					exit 1
+					;;
+			esac		
 			;;
 		*)
-			echo "Invalid options, please try again"
+			echo "Invalid options.\nNothing has been written. please try again"
 			exit 1
 			;;
 	esac
@@ -94,11 +135,6 @@ base_os_install() {
 	if [ $? -eq 0 ]; then
 		INSTALLDEVICE="${DEVICE}p"
 		numPartitions=$(grep -c ${DRIVEDEVICE}p /proc/partitions)
-	fi
-	
-	if [ ! -b $DEVICE ]; then
-		echo "$DEVICE not found! Installation Aborted!"
-		exit 1
 	fi
 
 	efiPartNum=$(expr $numPartitions + 1)
@@ -167,15 +203,19 @@ base_os_install() {
 
 	echo "\nPartitioning complete, mounting and pacstrapping..."
 	echo "${UCODE_INSTALL_MSG}"
-	mount -t btrfs -o subvol=/,compress-force=zstd:1,discard,noatime,nodiratime ${root_partition} ${HOLO_INSTALL_DIR}
+	mount -t btrfs -o subvol=/,compress-force=zstd:1,discard,noatime,nodiratime ${root_partition} ${HOLO_INSTALL_DIR} 
+	check_mount $? root
 	${CMD_MOUNT_BOOT}
+	check_mount $? boot
 	pacstrap -i ${HOLO_INSTALL_DIR} base base-devel ${UCODE_INSTALL} linux-holoiso linux-holoiso-headers linux-neptune-dri linux-neptune-dri-headers linux-firmware
+	check_download $? "installing base package"
 	echo "Pacstrap complete. Rebuilding kernel modules."
 	sleep 2
 	arch-chroot ${HOLO_INSTALL_DIR} depmod -a $(ls /lib/modules)
 	arch-chroot ${HOLO_INSTALL_DIR} mkinitcpio -P
 	mount -t ext4 ${home_partition} ${HOLO_INSTALL_DIR}/home
-
+	check_mount $? home
+	
 	echo "\nBase system installation done, generating fstab..."
 	genfstab -U -p /mnt >> /mnt/etc/fstab
 	cp /etc/pacman.conf /mnt/etc/pacman.conf
@@ -231,6 +271,7 @@ base_os_install() {
 	mkdir ${HOLO_INSTALL_DIR}/boot/efi
 	mount -t vfat ${INSTALLDEVICE}${efiPartNum} ${HOLO_INSTALL_DIR}/boot/efi
 	arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_INSTALL} core/grub efibootmgr inetutils mkinitcpio neofetch networkmanager sddm-wayland
+	check_download $? "installing bootloader"
 	arch-chroot ${HOLO_INSTALL_DIR} systemctl enable NetworkManager systemd-timesyncd
 	arch-chroot ${HOLO_INSTALL_DIR} grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=holo --removable
 	cp /etc/holoinstall/10_linux ${HOLO_INSTALL_DIR}/etc/grub.d/10_linux
@@ -248,6 +289,7 @@ full_install() {
     # The actual installation begins here:
 	arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_UPDATE}
 	arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_INSTALL} holoiso-main holoiso-updateclient wireplumber
+	check_download $? "installing full SteamOS 3"
 	sleep 1
 	while true
 	do
@@ -278,6 +320,7 @@ full_install() {
 	done
 	echo "\nConfiguring Steam Deck UI by default..."
 	arch-chroot ${HOLO_INSTALL_DIR} ${GAMESCOPE_INSTALL}
+	check_download $? "installing GPU Package"
 	mkdir ${HOLO_INSTALL_DIR}/etc/sddm.conf.d
 	echo "[General]\nDisplayServer=wayland\n\n[Autologin]\nUser=${HOLOUSER}\nSession=gamescope-wayland.desktop" >> ${HOLO_INSTALL_DIR}/etc/sddm.conf.d/autologin.conf
 	mkdir /mnt/home/${HOLOUSER}/Desktop
@@ -290,7 +333,9 @@ full_install() {
 	arch-chroot ${HOLO_INSTALL_DIR} usermod -a -G wheel ${HOLOUSER}
 	arch-chroot ${HOLO_INSTALL_DIR} sudo -u ${HOLOUSER} steam
 	arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_INSTALL} flatpak packagekit-qt5 rsync unzip vim
+	check_download $? "installing flatpak"
 	arch-chroot ${HOLO_INSTALL_DIR} flatpak remote-add --if-not-exists flathub https://dl.flathub.org/repo/flathub.flatpakrepo
+	check_download $? "updating flatpak"
 	arch-chroot ${HOLO_INSTALL_DIR} echo "recoveryinit" > /root/.bashrc
 }
 
