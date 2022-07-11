@@ -60,7 +60,7 @@ check_download_pacstrap(){
 		echo "\nError: Something went wrong when $2.\nPlease make sure you have a stable internet connection!\n"
 		read "Do you want to retry? (y/n) " RESTART_PACSTRAP
 		if [[ "${RESTART_PACSTRAP}" == "y" ]] || [[ "${RESTART_PACSTRAP}" == "Y" ]]; then
-			pacstrap -i ${HOLO_INSTALL_DIR} base base-devel ${UCODE_INSTALL} linux-holoiso linux-holoiso-headers linux-neptune-dri linux-neptune-dri-headers linux-firmware
+			pacstrap ${HOLO_INSTALL_DIR} base base-devel ${UCODE_INSTALL} linux-holoiso linux-holoiso-headers linux-neptune-dri linux-neptune-dri-headers linux-firmware
 		else
 			exit 1
 		fi
@@ -227,7 +227,7 @@ base_os_install() {
 	check_mount $? root
 	${CMD_MOUNT_BOOT}
 	check_mount $? boot
-	pacstrap -i ${HOLO_INSTALL_DIR} base base-devel ${UCODE_INSTALL} linux-holoiso linux-holoiso-headers linux-neptune-dri linux-neptune-dri-headers linux-firmware
+	pacstrap ${HOLO_INSTALL_DIR} base base-devel ${UCODE_INSTALL} linux-holoiso linux-holoiso-headers linux-neptune-dri linux-neptune-dri-headers linux-firmware
 	check_download_pacstrap $? "installing base package"
 	echo "Pacstrap complete. Rebuilding kernel modules."
 	sleep 2
