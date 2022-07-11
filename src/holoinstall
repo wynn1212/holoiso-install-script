@@ -55,32 +55,14 @@ check_mount(){
 	fi
 }
 
-check_download_pacstrap(){
+check_download(){
 	if [ $1 != 0 ]; then
 		echo "\nError: Something went wrong when $2.\nPlease make sure you have a stable internet connection!\n"
-		read "Do you want to retry? (y/n) " RESTART_PACSTRAP
-		if [[ "${RESTART_PACSTRAP}" == "y" ]] || [[ "${RESTART_PACSTRAP}" == "Y" ]]; then
-			pacstrap ${HOLO_INSTALL_DIR} base base-devel ${UCODE_INSTALL} linux-holoiso linux-holoiso-headers linux-neptune-dri linux-neptune-dri-headers linux-firmware
-		else
-			exit 1
-		fi
+		exit 1
 	fi
 }
 
-check_download_deck(){
-	if [ $1 != 0 ]; then
-		echo "\nError: Something went wrong when $2.\nPlease make sure you have a stable internet connection!\n"
-		read "Do you want to retry? (y/n) " RESTART_DECK
-		if [[ "${RESTART_DECK}" == "y" ]] || [[ "${RESTART_DECK}" == "Y" ]]; then
-			arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_UPDATE}
-			arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_INSTALL} holoiso-main holoiso-updateclient wireplumber
-		else
-			exit 1
-		fi
-	fi
-}
-
-base_os_install() {
+partitioning(){
 	lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,VENDOR,MODEL,SERIAL,MOUNTPOINT
 	read "?Enter your desired drive node here (for example, sda or nvme0n1): " DRIVEDEVICE
 	
@@ -212,6 +194,7 @@ base_os_install() {
 	fi
 	root_partition="${INSTALLDEVICE}${rootPartNum}"
 	mkfs -t vfat ${INSTALLDEVICE}${efiPartNum}
+	efi_partition="${INSTALLDEVICE}${efiPartNum}"
 	fatlabel ${INSTALLDEVICE}${efiPartNum} HOLOEFI
 	mkfs -t btrfs -f ${root_partition}
 	btrfs filesystem label ${root_partition} holo-root
@@ -222,13 +205,41 @@ base_os_install() {
 	fi
 
 	echo "\nPartitioning complete, mounting and pacstrapping..."
+}
+
+base_os_install() {
+	# Added failsafe check to prevent dualboot being fucked
+	OSROOT=/dev/disk/by-label/holo-root
+	OSHOME=/dev/disk/by-label/holo-home
+	if [[ -f "$OSROOT" ]]; then
+    	echo "It appears that HoloISO installation was found on your device"
+		read "?Do you want to format your installation or start over? (yN) " OSROOT_REDO
+		if [[ "${OSROOT_REDO}" == "y" ]] || [[ "${OSROOT_REDO}" == "Y" ]]; then
+			mkfs -t vfat /dev/disk/by-label/HOLOEFI
+			mkfs -t btrfs -f /dev/disk/by-label/holo-root
+			if [[ -f "$OSHOME" ]]; then
+				echo "Installation with home detected... Formatting..."
+				mkfs -t ext4 -O casefold /dev/disk/by-label/holo-home
+				home_partition="/dev/disk/by-label/holo-home"
+			else
+				echo "Home partition not required... Skipping..."
+			fi
+			root_partition="/dev/disk/by-label/holo-root"
+			efi_partition="/dev/disk/by-label/HOLOEFI"
+		elif [[ "${OSROOT_REDO}" == "n" ]] || [[ "${OSROOT_REDO}" == "N" ]]; then
+			partitioning
+		fi
+	else
+		partitioning
+	fi
+	# Actual installer below:
 	echo "${UCODE_INSTALL_MSG}"
 	mount -t btrfs -o subvol=/,compress-force=zstd:1,discard,noatime,nodiratime ${root_partition} ${HOLO_INSTALL_DIR} 
 	check_mount $? root
 	${CMD_MOUNT_BOOT}
 	check_mount $? boot
 	pacstrap ${HOLO_INSTALL_DIR} base base-devel ${UCODE_INSTALL} linux-holoiso linux-holoiso-headers linux-neptune-dri linux-neptune-dri-headers linux-firmware
-	check_download_pacstrap $? "installing base package"
+	check_download $? "installing base package"
 	echo "Pacstrap complete. Rebuilding kernel modules."
 	sleep 2
 	arch-chroot ${HOLO_INSTALL_DIR} depmod -a $(ls /lib/modules)
@@ -289,7 +300,7 @@ base_os_install() {
 	echo "\nInstalling bootloader..."
 	arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_UPDATE}
 	mkdir ${HOLO_INSTALL_DIR}/boot/efi
-	mount -t vfat ${INSTALLDEVICE}${efiPartNum} ${HOLO_INSTALL_DIR}/boot/efi
+	mount -t vfat ${efi_partition} ${HOLO_INSTALL_DIR}/boot/efi
 	arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_INSTALL} core/grub efibootmgr inetutils mkinitcpio neofetch networkmanager sddm-wayland
 	arch-chroot ${HOLO_INSTALL_DIR} systemctl enable NetworkManager systemd-timesyncd
 	arch-chroot ${HOLO_INSTALL_DIR} grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=holo --removable
@@ -308,7 +319,7 @@ full_install() {
     # The actual installation begins here:
 	arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_UPDATE}
 	arch-chroot ${HOLO_INSTALL_DIR} ${CMD_PACMAN_INSTALL} holoiso-main holoiso-updateclient wireplumber
-	check_download_deck $? "installing full SteamOS 3"
+	check_download $? "installing full SteamOS 3"
 	sleep 1
 	while true
 	do
