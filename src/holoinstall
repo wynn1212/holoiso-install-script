@@ -209,29 +209,29 @@ partitioning(){
 
 base_os_install() {
 	# Added failsafe check to prevent dualboot being fucked
-	OSROOT=/dev/disk/by-label/holo-root
-	OSHOME=/dev/disk/by-label/holo-home
-	if [[ -f "$OSROOT" ]]; then
-    	echo "It appears that HoloISO installation was found on your device"
-		read "?Do you want to format your installation or start over? (yN) " OSROOT_REDO
-		if [[ "${OSROOT_REDO}" == "y" ]] || [[ "${OSROOT_REDO}" == "Y" ]]; then
-			mkfs -t vfat /dev/disk/by-label/HOLOEFI
-			mkfs -t btrfs -f /dev/disk/by-label/holo-root
-			if [[ -f "$OSHOME" ]]; then
-				echo "Installation with home detected... Formatting..."
-				mkfs -t ext4 -O casefold /dev/disk/by-label/holo-home
-				home_partition="/dev/disk/by-label/holo-home"
-			else
-				echo "Home partition not required... Skipping..."
-			fi
-			root_partition="/dev/disk/by-label/holo-root"
-			efi_partition="/dev/disk/by-label/HOLOEFI"
-		elif [[ "${OSROOT_REDO}" == "n" ]] || [[ "${OSROOT_REDO}" == "N" ]]; then
-			partitioning
-		fi
-	else
-		partitioning
-	fi
+	#OSROOT=/dev/disk/by-label/holo-root
+	#OSHOME=/dev/disk/by-label/holo-home
+	#if [[ -f "$OSROOT" ]]; then
+    #	echo "It appears that HoloISO installation was found on your device"
+	#	read "?Do you want to format your installation or start over? (yN) " OSROOT_REDO
+	#	if [[ "${OSROOT_REDO}" == "y" ]] || [[ "${OSROOT_REDO}" == "Y" ]]; then
+	#		mkfs -t vfat /dev/disk/by-label/HOLOEFI
+	#		mkfs -t btrfs -f /dev/disk/by-label/holo-root
+	#		if [[ -f "$OSHOME" ]]; then
+	#			echo "Installation with home detected... Formatting..."
+	#			mkfs -t ext4 -O casefold /dev/disk/by-label/holo-home
+	#			home_partition="/dev/disk/by-label/holo-home"
+	#		else
+	#			echo "Home partition not required... Skipping..."
+	#		fi
+	#		root_partition="/dev/disk/by-label/holo-root"
+	#		efi_partition="/dev/disk/by-label/HOLOEFI"
+	#	elif [[ "${OSROOT_REDO}" == "n" ]] || [[ "${OSROOT_REDO}" == "N" ]]; then
+	#		partitioning
+	#	fi
+	#else
+	partitioning
+	#fi
 	# Actual installer below:
 	echo "${UCODE_INSTALL_MSG}"
 	mount -t btrfs -o subvol=/,compress-force=zstd:1,discard,noatime,nodiratime ${root_partition} ${HOLO_INSTALL_DIR} 
