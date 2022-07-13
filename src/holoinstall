@@ -116,7 +116,11 @@ partitioning(){
 			echo "\nHoloISO will be installed alongside existing OS/Partition.\nPlease make sure there are more than 24 GB on the >>END<< of free(unallocate) space available\n"
 			parted $DEVICE print free
 			echo "HoloISO will be installed on the following free(unallocate) space.\n"
-			parted $DEVICE print free | tail -n2
+			parted $DEVICE print free | tail -n2 | grep "Free Space"
+			if [ $? != 0 ]; then
+				echo "Error! No Free Space found on the end of the disk.\nNothing has been written.\nYou canceled the non-destructive install, please try again"
+				exit 1
+			fi
 			echo -n "\nDoes this look reasonable(y/n): "
 			read ANS
 			case $ANS in
