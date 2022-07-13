@@ -107,8 +107,10 @@ partitioning(){
 			esac
 			;;
 		2)
-			echo "\nHoloISO will be installed alongside existing OS/Partition.\nPlease make sure there are more than 24 GB of free space available\n"
-			lsblk -o NAME,MAJ:MIN,RM,SIZE,RO,TYPE,VENDOR,MODEL,SERIAL,MOUNTPOINT $DEVICE
+			echo "\nHoloISO will be installed alongside existing OS/Partition.\nPlease make sure there are more than 24 GB on the >>END<< of free(unallocate) space available\n"
+			parted $DEVICE print free
+			echo "HoloISO will be installed on the following free(unallocate) space.\n"
+			parted $DEVICE print free | tail -n2
 			echo -n "\nDoes this look reasonable(y/n): "
 			read ANS
 			case $ANS in
