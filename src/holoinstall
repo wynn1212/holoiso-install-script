@@ -74,6 +74,12 @@ partitioning(){
 		echo "$DEVICE not found! Installation Aborted!"
 		exit 1
 	fi
+	lsblk $DEVICE | head -n2 | tail -n1 | grep disk > /dev/null 2>&1
+	if [ $? != 0 ]; then
+		echo "$DEVICE is not disk type! Installation Aborted!"
+		ehho "\nNote: If you wish to preform partition install.\n Please specify the disk drive node first then select \"2\" for partition install."
+		exit 1
+	fi
 	
 	echo "1) Erase your drive\n2) Install alongside existing OS/Partition\nType 1 or 2: "
 	read "?Your choice is: " install
