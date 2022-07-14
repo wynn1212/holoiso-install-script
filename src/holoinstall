@@ -245,7 +245,7 @@ base_os_install() {
 	check_mount $? root
 	${CMD_MOUNT_BOOT}
 	check_mount $? boot
-	pacstrap ${HOLO_INSTALL_DIR} --disable-download-timeout base base-devel ${UCODE_INSTALL} linux-holoiso linux-holoiso-headers linux-neptune-dri linux-neptune-dri-headers linux-firmware
+	pacstrap ${HOLO_INSTALL_DIR} --disable-download-timeout base base-devel ${UCODE_INSTALL} linux-holoiso linux-holoiso-headers linux-neptune linux-neptune-headers linux-firmware
 	check_download $? "installing base package"
 	echo "Pacstrap complete. Rebuilding kernel modules."
 	sleep 2
