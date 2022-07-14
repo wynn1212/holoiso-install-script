@@ -147,31 +147,26 @@ partitioning(){
 	diskSpace=$(awk '/'${DRIVEDEVICE}'/ {print $3; exit}' /proc/partitions)
 	# <= 60GB: typical flash drive
 	if [ $diskSpace -lt 60000000 ]; then
-		digitMB=13
-		digitGB=10
+		digitMB=8
 		realDiskSpace=$(parted ${DEVICE} unit MB print free|head -n2|tail -n1|cut -c 16-20)
 	# <= 500GB: typical 512GB hard drive
 	elif [ $diskSpace -lt 500000000 ]; then
-		digitMB=14
-		digitGB=11
+		digitMB=8
 		realDiskSpace=$(parted ${DEVICE} unit MB print free|head -n2|tail -n1|cut -c 20-25)
 	# anything else: typical 1024GB hard drive
 	else
-		digitMB=15
-		digitGB=12
+		digitMB=9
 		realDiskSpace=$(parted ${DEVICE} unit MB print free|head -n2|tail -n1|cut -c 20-26)
 	fi
 
 	if [ $destructive ]; then
 		efiStart=2
-		rootStart=258M
-		rootEnd=25
 	else
-		efiStart=$(parted ${DEVICE} unit MB print free|tail -n2|cut -c 9-${digitMB})
-		rootStart=$(parted ${DEVICE} unit GB print free|tail -n2|cut -c 9-${digitGB})
-		rootEnd=$(expr $rootStart + 24)
+		efiStart=$(parted ${DEVICE} unit MB print free|tail -n2|sed s/'        '//|cut -c1-$digitMB|sed s/MB//|sed s/' '//g)
 	fi
 	efiEnd=$(expr $efiStart + 256)
+	rootStart=$efiEnd
+	rootEnd=$(expr $rootStart + 24000)
 
 	if [ $efiEnd -gt $realDiskSpace ]; then
 		echo "Not enough space available, please choose another disk and try again"
@@ -186,10 +181,10 @@ partitioning(){
 	# If the boot device is mmcblk0, don't create an ext4 partition or it will break steamOS versions
 	# released after May 20.
 	if [ $diskSpace -lt 64000000 ] || [[ "${DEVICE}" =~ mmcblk0 ]]; then
-		parted ${DEVICE} mkpart primary btrfs ${rootStart} 100%
+		parted ${DEVICE} mkpart primary btrfs ${rootStart}M 100%
 	else
-		parted ${DEVICE} mkpart primary btrfs ${rootStart} ${rootEnd}G
-		parted ${DEVICE} mkpart primary ext4 ${rootEnd}G 100%
+		parted ${DEVICE} mkpart primary btrfs ${rootStart}M ${rootEnd}M
+		parted ${DEVICE} mkpart primary ext4 ${rootEnd}M 100%
 		home=true
 	fi
 	root_partition="${INSTALLDEVICE}${rootPartNum}"
