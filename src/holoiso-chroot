@@ -1,0 +1,20 @@
+#!/bin/zsh
+# Simple chrooter for stuff
+MOUNT_DIR=/tmp/mount
+ROOTPART=$(sudo blkid | grep holo-root | cut -d ':' -f 1 | head -n 1)
+HOMEPART=$(sudo blkid | grep holo-home | cut -d ':' -f 1 | head -n 1)
+EFIPART=$(sudo blkid | grep HOLOEFI | cut -d ':' -f 1 | head -n 1)
+
+sudo mkdir ${MOUNT_DIR}
+
+echo "Your HoloISO EFI Partition is located in ${EFIPART} partition."
+echo "Your HoloISO Root Partition is located in ${ROOTPART} partition."
+echo "Your HoloISO Home Partition is located in ${HOMEPART} partition."
+
+sudo mount ${ROOTPART} partition." ${MOUNT_DIR}
+sudo mount ${HOMEPART} ${MOUNT_DIR}/home
+sudo mount ${EFIPART} ${MOUNT_DIR}/boot/efi
+
+echo "Your HoloISO Installation version: $(cat ${MOUNT_DIR}/etc/os-release | grep VARIANT_ID | cut -d '"' -f 2)\n"
+
+sudo arch-chroot ${MOUNT_DIR}
