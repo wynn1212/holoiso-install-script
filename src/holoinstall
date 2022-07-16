@@ -13,6 +13,7 @@ if [ $? -eq 0 ]; then
 	echo "Internet check passed"
 else
 	echo -e "No Internet connection available, exiting\nUse iwctl util to connect WiFi"
+	echo 'Press any key to exit...'; read -k1 -s
 	exit
 fi
 
@@ -25,6 +26,7 @@ INSTALLER_UPD_QUERY=$(pacman -Qu | grep holoiso-install-script)
 if [ -n "${INSTALLER_UPD_QUERY}" ]; then
   pacman -S --noconfirm holoiso-install-script
   echo "Installer updated. Please run holoinstall again."
+  echo 'Press any key to exit...'; read -k1 -s
   exit
 else
   echo "Installer is up to date. Starting installation."
@@ -51,6 +53,7 @@ fi
 check_mount(){
 	if [ $1 != 0 ]; then
 		echo "\nError: Something went wrong when mounting $2 partitions. Please try again!\n"
+		echo 'Press any key to exit...'; read -k1 -s
 		exit 1
 	fi
 }
@@ -390,14 +393,14 @@ if [[ "${HOLO_INSTALL_TYPE}" == "1" ]] || [[ "${HOLO_INSTALL_TYPE}" == "barebone
 	echo "Installing SteamOS, barebones configuration..."
 	base_os_install
 	echo "Installation finished! You may reboot now, or type arch-chroot /mnt to make further changes"
-
+	echo 'Press any key to exit...'; read -k1 -s
 elif [[ "${HOLO_INSTALL_TYPE}" == "2" ]]; then
 
 	echo "Installing SteamOS, deckperience configuration..."
 	base_os_install
 	full_install
 	echo "Installation finished! You may reboot now, or type arch-chroot /mnt to make further changes"
-
+	echo 'Press any key to exit...'; read -k1 -s
 else
 	echo "Invalid choice. Exiting installer..."
 fi
